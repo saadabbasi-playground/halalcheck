@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Halal Check — offline ingredient analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Karla:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --pine:#0B4A33; --pine-dark:#073526; --pine-soft:#E7F0EB;
+    --bone:#FBFAF6; --ink:#1E241F; --ink-soft:#5A655D; --line:#DCE3DC;
+    --gold:#A87B1F; --gold-soft:#F7EFDC;
+    --red:#9B2C1F; --red-soft:#F8E9E6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bone);color:var(--ink);font-family:'Karla',sans-serif;font-size:16px;line-height:1.55}
+  header{border-bottom:1px solid var(--line)}
+  .wrap{max-width:720px;margin:0 auto;padding:0 20px}
+  .head{display:flex;align-items:baseline;gap:12px;padding:20px 0 18px}
+  h1{font-family:'Marcellus',serif;font-size:26px;margin:0;color:var(--pine-dark);letter-spacing:.5px}
+  .arabic{font-family:'Marcellus',serif;font-size:18px;color:var(--pine)}
+  .tag{margin-left:auto;font-size:12px;color:var(--ink-soft);letter-spacing:.08em;text-transform:uppercase}
+  main{padding:26px 0 64px}
+  .tabs{display:flex;gap:8px;margin-bottom:20px}
+  .tab{flex:1;padding:12px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:15px;font-weight:700;color:var(--ink-soft);cursor:pointer}
+  .tab.active{background:var(--pine);border-color:var(--pine);color:#fff}
+  .drop{border:2px dashed var(--line);background:#fff;border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s}
+  .drop.over,.drop:hover{border-color:var(--pine);background:var(--pine-soft)}
+  .drop h2{font-family:'Marcellus',serif;font-size:19px;color:var(--pine-dark);margin:0 0 6px;font-weight:400}
+  .drop p{font-size:14px;color:var(--ink-soft);margin:0}
+  .drop img{max-width:100%;max-height:300px;border-radius:8px}
+  textarea{width:100%;padding:12px 14px;font-size:15px;font-family:'Karla',sans-serif;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);resize:vertical}
+  label span{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+  .btn{width:100%;padding:15px 20px;font-size:16px;font-weight:700;font-family:'Karla',sans-serif;color:#fff;background:var(--pine);border:none;border-radius:10px;cursor:pointer;letter-spacing:.02em}
+  .btn:disabled{background:#9BB3A6;cursor:default}
+  .btn.ghost{background:transparent;color:var(--pine-dark);border:1px solid var(--line);width:auto}
+  .row{display:flex;gap:10px;margin-top:16px}
+  .row .btn{flex:1}
+  .progress{margin-top:16px;display:none}
+  .progress .bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+  .progress .fill{height:100%;width:0;background:var(--pine);border-radius:99px;transition:width .2s}
+  .progress .txt{font-size:13px;color:var(--ink-soft);margin-top:6px;text-align:center}
+  .error{margin-top:16px;padding:12px 16px;background:var(--red-soft);border:1px solid rgba(155,44,31,.25);border-radius:10px;color:var(--red);font-size:14px;display:none}
+  .seal{width:190px;height:190px;margin:8px auto 0;border-radius:50%;border:3px solid;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:sealIn .55s cubic-bezier(.2,.8,.3,1.1) both}
+  .seal::before{content:"";position:absolute;inset:8px;border-radius:50%;border:1px dashed;border-color:inherit;opacity:.6}
+  .seal .ar{font-family:'Marcellus',serif;font-size:30px;line-height:1}
+  .seal .en{font-family:'Marcellus',serif;font-size:26px;margin-top:6px;letter-spacing:.06em;text-transform:uppercase}
+  .seal .sub{font-size:11.5px;margin-top:5px;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px;animation:fadeUp .4s ease both}
+  .card h3{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 10px}
+  .ing{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+  .ing:first-of-type{border-top:none}
+  .pill{align-self:flex-start;flex-shrink:0;margin-top:2px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;min-width:74px;text-align:center;border:1px solid}
+  .ing b{font-size:15px;display:block}
+  .ing small{font-size:14px;color:var(--ink-soft)}
+  .snippet{font-size:12.5px;color:var(--ink-soft);font-style:italic}
+  .advice{background:var(--pine-soft);border:1px solid rgba(11,74,51,.2);border-radius:14px;padding:16px 20px;margin-bottom:20px;font-size:14.5px;color:var(--pine-dark)}
+  .disclaimer{margin-top:22px;font-size:12.5px;color:var(--ink-soft);text-align:center}
+  .hidden{display:none}
+  #productName{text-align:center;font-family:'Marcellus',serif;font-size:20px;margin:16px 0 24px}
+  @keyframes sealIn{0%{transform:scale(1.25) rotate(-8deg);opacity:0}60%{transform:scale(.97);opacity:1}100%{transform:scale(1)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  .btn:focus-visible,.tab:focus-visible,.drop:focus-visible,textarea:focus-visible{outline:3px solid var(--pine);outline-offset:2px}
+</style>
+</head>
+<body>
+<header><div class="wrap head">
+  <h1>Halal Check</h1><span class="arabic">حلال</span>
+  <span class="tag">Offline · no AI</span>
+</div></header>
+
+<main class="wrap">
+  <section id="inputView">
+    <div class="tabs" role="tablist">
+      <button class="tab active" id="tabPhoto" role="tab" aria-selected="true">Photo (OCR)</button>
+      <button class="tab" id="tabText" role="tab" aria-selected="false">Paste text</button>
+    </div>
+
+    <div id="photoPane">
+      <div class="drop" id="drop" role="button" tabindex="0" aria-label="Upload a product photo">
+        <div id="dropEmpty">
+          <h2>Add a photo of the ingredients label</h2>
+          <p>Tap to use your camera or choose a file · drag &amp; drop works too</p>
+        </div>
+        <img id="preview" class="hidden" alt="Label preview" />
+      </div>
+      <input type="file" id="file" accept="image/*" capture="environment" class="hidden" />
+      <div class="row">
+        <button class="btn" id="ocrBtn" disabled>Read label</button>
+        <button class="btn ghost hidden" id="clearBtn">Clear</button>
+      </div>
+      <div class="progress" id="progress">
+        <div class="bar"><div class="fill" id="fill"></div></div>
+        <div class="txt" id="progressTxt">Loading OCR engine…</div>
+      </div>
+    </div>
+
+    <label style="display:block;margin-top:20px">
+      <span>Ingredients text <em style="font-weight:400;text-transform:none;letter-spacing:0">(from OCR — review &amp; fix any misreads, or type it yourself)</em></span>
+      <textarea id="ingText" rows="6" placeholder="e.g. Sugar, glucose syrup, gelatine, citric acid, natural flavours, carmine (E120)…" style="margin-top:8px"></textarea>
+    </label>
+
+    <div class="row"><button class="btn" id="checkBtn">Check ingredients</button></div>
+    <div class="error" id="err"></div>
+  </section>
+
+  <section id="resultView" class="hidden">
+    <div class="seal" id="seal">
+      <div class="ar" id="sealAr"></div>
+      <div class="en" id="sealEn"></div>
+      <div class="sub" id="sealSub"></div>
+    </div>
+    <div id="productName"></div>
+    <div class="card"><h3>Reasoning</h3><p id="summary" style="margin:0;font-size:15.5px"></p></div>
+    <div class="card" id="ingCard"><h3>Ingredient review</h3><div id="ingList"></div></div>
+    <div class="advice" id="advice"></div>
+    <button class="btn" id="againBtn">Check another product</button>
+    <p class="disclaimer">Rule-based guidance only — additive sourcing varies by manufacturer and rulings differ between certification bodies. When in doubt, confirm with the manufacturer or a trusted halal authority.</p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+/* ───────────── Ingredient rules database ─────────────
+   Each rule: name, status, re (regex), reason, unless (regex
+   tested against ±45 chars of context — if it matches, the
+   hit is skipped or downgraded via `unlessRule`).            */
+const RULES = [
+  // ---- HARAM ----
+  {name:"Pork / pig derivative", status:"haram", re:/\b(pork|pig|porcine|swine|boar)\b/gi,
+   reason:"Directly derived from pig — impermissible by consensus."},
+  {name:"Lard", status:"haram", re:/\blard\b/gi,
+   reason:"Rendered pig fat — impermissible."},
+  {name:"Pork-based meat", status:"haram", re:/\b(bacon|ham|prosciutto|pancetta|chorizo|pepperoni|salami)\b/gi,
+   unless:/\b(beef|turkey|chicken|halal)[ -](bacon|ham|pepperoni|salami)/i,
+   reason:"Pork-based meat unless explicitly beef/turkey/chicken and halal-certified."},
+  {name:"Alcoholic beverage", status:"haram", re:/\b(wine|beer|rum|brandy|whisky|whiskey|bourbon|liqueur|sake|mirin|vodka)\b/gi,
+   unless:/wine\s+vinegar/i,
+   reason:"Intoxicant added as an ingredient — impermissible. (Fully converted vinegar is generally permitted.)"},
+  {name:"Added alcohol / ethanol", status:"haram", re:/\b(ethanol|ethyl alcohol|alcohol)\b/gi,
+   unless:/(cetyl|stearyl|cetearyl|benzyl|polyvinyl|sugar)\s*alcohol|alcohol[- ]free/i,
+   reason:"Added alcohol is impermissible. (Fatty alcohols like cetyl alcohol are not intoxicants and are exempt.)"},
+  {name:"Pork gelatine", status:"haram", re:/\b(pork|porcine|pig)[ -]gelat\w*/gi,
+   reason:"Gelatine of pig origin — impermissible."},
+
+  // ---- MUSHBOOH ----
+  {name:"Gelatine (source unspecified)", status:"mushbooh", re:/\bgelatine?\b|\bE ?441\b/gi,
+   unless:/(fish|halal|plant|vegetable|beef|bovine)[ -]gelat|gelatine?\s*\((fish|halal|beef|bovine)/i,
+   reason:"Usually animal-derived; treated as not halal by most bodies unless the source is verified (halal-slaughtered beef or fish)."},
+  {name:"Beef/bovine gelatine", status:"mushbooh", re:/\b(beef|bovine)[ -]gelat\w*/gi,
+   unless:/halal/i,
+   reason:"Bovine source, but only halal if from halal-slaughtered cattle — verify certification."},
+  {name:"Carmine / cochineal (E120)", status:"mushbooh", re:/\b(carmine|cochineal|carminic acid|E ?120)\b/gi,
+   reason:"Insect-derived red colour; considered impermissible by many authorities (incl. Hanafi), permitted by some."},
+  {name:"Rennet / enzymes (source unspecified)", status:"mushbooh", re:/\b(rennet|enzymes?|pepsin|lipase|protease)\b/gi,
+   unless:/(microbial|vegetarian|vegetable|fungal|plant)[ -](rennet|enzyme)/i,
+   reason:"May be animal-derived from non-halal slaughter; fine if microbial/vegetable."},
+  {name:"Whey / whey powder", status:"mushbooh", re:/\bwhey\b/gi,
+   reason:"May be produced using animal rennet of unverified source."},
+  {name:"Natural flavours", status:"mushbooh", re:/\bnatural\s+flavou?r(ing)?s?\b/gi,
+   reason:"Umbrella term that can include alcohol carriers or animal derivatives — source unknown."},
+  {name:"Vanilla extract", status:"mushbooh", re:/\bvanilla\s+extract\b/gi,
+   reason:"Typically extracted in ethanol; rulings differ on trace residual alcohol."},
+  {name:"Glycerine / glycerol (E422)", status:"mushbooh", re:/\bglycer(ine?|ol)\b|\bE ?422\b/gi,
+   unless:/vegetable[ -]glycer/i,
+   reason:"Can be plant- or animal-fat derived — verify source."},
+  {name:"Mono- & diglycerides (E471/E472)", status:"mushbooh", re:/\bmono-?\s*(and|&)?\s*di-?glycerides\b|\bdiglycerides\b|\bE ?47[12][a-f]?\b/gi,
+   unless:/(plant|vegetable|soy)[ -](based|derived|origin|source)/i,
+   reason:"Emulsifiers that can be plant- or animal-fat derived — verify source."},
+  {name:"Emulsifier (unspecified)", status:"mushbooh", re:/\bemulsifiers?\b(?!\s*[:(]?\s*(soy|sunflower|soya)?\s*lecithin)/gi,
+   unless:/lecithin|E ?322/i,
+   reason:"Unspecified emulsifiers can be animal-derived — verify which additive is used."},
+  {name:"L-cysteine (E920)", status:"mushbooh", re:/\bl-?cysteine\b|\bE ?920\b/gi,
+   reason:"Historically made from feathers or hair; synthetic/microbial versions are fine — verify."},
+  {name:"Shellac (E904)", status:"mushbooh", re:/\bshellac\b|\bE ?904\b/gi,
+   reason:"Insect-secretion glaze; permitted by some authorities, avoided by others."},
+  {name:"Animal fat / tallow / shortening", status:"mushbooh", re:/\b(animal fat|tallow|suet|shortening)\b/gi,
+   unless:/vegetable[ -](shortening|fat)/i,
+   reason:"Animal fat of unverified species and slaughter — avoid unless source is confirmed halal."},
+  {name:"Flavour enhancers E627/E631/E635", status:"mushbooh", re:/\bE ?6(27|31|35)\b|\bdisodium\s+(inosinate|guanylate|5'?-?ribonucleotides)\b/gi,
+   reason:"Can be produced from meat or fish sources — verify origin."},
+  {name:"Bone-derived additive (E153/E542)", status:"mushbooh", re:/\bE ?(153|542)\b|\bbone\s+(char|phosphate)\b/gi,
+   reason:"May be produced from animal bones of unverified source."},
+  {name:"Cheese powder / cheese (rennet unverified)", status:"mushbooh", re:/\bcheese(\s+powder)?\b/gi,
+   unless:/(microbial|vegetarian)[ -]rennet|halal/i,
+   reason:"Cheese may be made with animal rennet — verify rennet type."},
+
+  // ---- Notable HALAL positives ----
+  {name:"Soy lecithin (E322)", status:"halal", re:/\b(soya?|sunflower)\s+lecithin\b|\blecithin\b|\bE ?322\b/gi,
+   reason:"Almost always plant-derived (soy/sunflower)."},
+  {name:"Plant/seaweed gelling agents", status:"halal", re:/\b(pectin|agar(-| )?agar|agar|carrageenan|guar gum|xanthan gum|locust bean gum)\b/gi,
+   reason:"Plant-, seaweed- or fermentation-derived — permissible."},
+  {name:"Microbial / vegetarian rennet", status:"halal", re:/\b(microbial|vegetarian|vegetable|fungal)[ -]rennet\b/gi,
+   reason:"Non-animal rennet — permissible."},
+  {name:"Vegetable oils", status:"halal", re:/\b(palm|sunflower|canola|rapeseed|soybean|olive|coconut|vegetable)\s+oil\b/gi,
+   reason:"Plant-derived oils — permissible."},
+];
+
+const META = {
+  halal:   {ar:"حلال",  en:"Halal",    sub:"Permissible",              color:"var(--pine)", soft:"var(--pine-soft)", hex:"#0B4A33"},
+  mushbooh:{ar:"مشبوه", en:"Mushbooh", sub:"Doubtful — verify source", color:"var(--gold)", soft:"var(--gold-soft)", hex:"#A87B1F"},
+  haram:   {ar:"حرام",  en:"Haram",    sub:"Not permissible",          color:"var(--red)",  soft:"var(--red-soft)",  hex:"#9B2C1F"},
+};
+
+function analyzeText(text){
+  const hits = [];
+  const seen = new Set();
+  for(const rule of RULES){
+    rule.re.lastIndex = 0;
+    let m, matched = false, snippet = "";
+    while((m = rule.re.exec(text)) !== null){
+      const start = Math.max(0, m.index - 45);
+      const window = text.slice(start, m.index + m[0].length + 45);
+      if(rule.unless && rule.unless.test(window)) continue;
+      matched = true;
+      snippet = window.replace(/\s+/g," ").trim();
+      break;
+    }
+    if(matched && !seen.has(rule.name)){
+      seen.add(rule.name);
+      hits.push({...rule, snippet});
+    }
+  }
+  // Suppress the generic gelatine hit if a specific gelatine rule fired
+  const specificGel = hits.some(h => h.name.includes("Pork gelatine") || h.name.includes("Beef/bovine gelatine"));
+  const filtered = specificGel ? hits.filter(h => h.name !== "Gelatine (source unspecified)") : hits;
+
+  const haram = filtered.filter(h=>h.status==="haram");
+  const mush  = filtered.filter(h=>h.status==="mushbooh");
+  const verdict = haram.length ? "haram" : mush.length ? "mushbooh" : "halal";
+
+  const certSeen = /halal\s*(certified|logo|mark)?|حلال/i.test(text);
+
+  let summary;
+  if(verdict==="haram"){
+    summary = `Found ${haram.length} impermissible ingredient${haram.length>1?"s":""}: ${haram.map(h=>h.name).join(", ")}. This product should be avoided.`;
+  } else if(verdict==="mushbooh"){
+    summary = `No clearly haram ingredients, but ${mush.length} doubtful item${mush.length>1?"s":""} found: ${mush.map(h=>h.name).join(", ")}. The permissibility depends on how these were sourced, which the label doesn't confirm.`;
+  } else {
+    summary = filtered.length
+      ? "No haram or doubtful ingredients matched. The recognisable ingredients are plant-based or otherwise permissible."
+      : "No flagged ingredients were found in the text. Note this check only matches known problem ingredients — if the text is incomplete or misread, results may miss something.";
+  }
+  if(certSeen) summary += " A halal certification mention was also detected on the label.";
+
+  const advice = verdict==="haram"
+    ? "Avoid this product. Look for a halal-certified alternative."
+    : verdict==="mushbooh"
+    ? "Contact the manufacturer about the flagged ingredients' sources, or prefer a version carrying a recognised halal certification mark."
+    : "Looks fine based on the label — a recognised halal certification mark remains the strongest assurance.";
+
+  return {verdict, hits: filtered, summary, advice, certSeen};
+}
+
+/* ───────────── UI wiring ───────────── */
+const $ = id => document.getElementById(id);
+let imgDataUrl = null;
+
+// Tabs
+$("tabPhoto").onclick = () => switchTab(true);
+$("tabText").onclick  = () => switchTab(false);
+function switchTab(photo){
+  $("tabPhoto").classList.toggle("active", photo);
+  $("tabText").classList.toggle("active", !photo);
+  $("tabPhoto").setAttribute("aria-selected", photo);
+  $("tabText").setAttribute("aria-selected", !photo);
+  $("photoPane").classList.toggle("hidden", !photo);
+}
+
+// Upload
+const drop = $("drop"), fileInput = $("file");
+drop.onclick = () => fileInput.click();
+drop.onkeydown = e => { if(e.key==="Enter"||e.key===" ") fileInput.click(); };
+drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); loadFile(e.dataTransfer.files[0]); };
+fileInput.onchange = e => loadFile(e.target.files[0]);
+
+function loadFile(file){
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    imgDataUrl = r.result;
+    $("preview").src = imgDataUrl;
+    $("preview").classList.remove("hidden");
+    $("dropEmpty").classList.add("hidden");
+    $("ocrBtn").disabled = false;
+    $("clearBtn").classList.remove("hidden");
+    hideError();
+  };
+  r.readAsDataURL(file);
+}
+
+$("clearBtn").onclick = () => {
+  imgDataUrl = null; fileInput.value = "";
+  $("preview").classList.add("hidden");
+  $("dropEmpty").classList.remove("hidden");
+  $("ocrBtn").disabled = true;
+  $("clearBtn").classList.add("hidden");
+};
+
+// Preprocess: upscale + grayscale + contrast stretch for better OCR
+function preprocess(dataUrl){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 1800;
+      let w = img.width, h = img.height;
+      const scale = Math.min(maxDim / Math.max(w,h), 2.2);
+      if(scale !== 1){ w = Math.round(w*scale); h = Math.round(h*scale); }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      const d = ctx.getImageData(0,0,w,h), px = d.data;
+      let min=255, max=0;
+      for(let i=0;i<px.length;i+=4){
+        const g = 0.299*px[i]+0.587*px[i+1]+0.114*px[i+2];
+        if(g<min)min=g; if(g>max)max=g;
+      }
+      const range = Math.max(1, max-min);
+      for(let i=0;i<px.length;i+=4){
+        const g = 0.299*px[i]+0.587*px[i+1]+0.114*px[i+2];
+        const v = Math.max(0, Math.min(255, (g-min)/range*255));
+        px[i]=px[i+1]=px[i+2]=v;
+      }
+      ctx.putImageData(d,0,0);
+      resolve(c);
+    };
+    img.src = dataUrl;
+  });
+}
+
+// OCR
+$("ocrBtn").onclick = async () => {
+  if(!imgDataUrl) return;
+  hideError();
+  $("ocrBtn").disabled = true;
+  $("progress").style.display = "block";
+  setProgress(0, "Loading OCR engine…");
+  try{
+    if(typeof Tesseract === "undefined")
+      throw new Error("The OCR engine couldn't load here (restricted network). Paste the ingredients text into the box below instead — the checker itself works fully offline.");
+    const canvas = await preprocess(imgDataUrl);
+    const worker = await Tesseract.createWorker("eng", 1, {
+      logger: m => {
+        if(m.status === "recognizing text") setProgress(m.progress, `Reading label… ${Math.round(m.progress*100)}%`);
+        else setProgress(0.05, "Preparing OCR…");
+      }
+    });
+    const { data } = await worker.recognize(canvas);
+    await worker.terminate();
+    const text = (data.text || "").trim();
+    if(!text) throw new Error("No text could be read from the photo. Try a closer, flatter, well-lit shot of the label — or type the ingredients below.");
+    $("ingText").value = text.replace(/\s*\n\s*/g, " ").replace(/\s{2,}/g," ");
+    setProgress(1, "Done — review the text below, then check.");
+  }catch(e){
+    showError(e.message || "OCR failed. Type or paste the ingredients text instead.");
+    $("progress").style.display = "none";
+  }finally{
+    $("ocrBtn").disabled = false;
+  }
+};
+
+function setProgress(p, txt){ $("fill").style.width = (p*100)+"%"; $("progressTxt").textContent = txt; }
+function showError(msg){ $("err").textContent = msg; $("err").style.display = "block"; }
+function hideError(){ $("err").style.display = "none"; }
+
+// Check
+$("checkBtn").onclick = () => {
+  const text = $("ingText").value.trim();
+  if(!text){ showError("Add some ingredients text first — read it from a photo or paste it in."); return; }
+  hideError();
+  const res = analyzeText(text);
+  renderResult(res);
+};
+
+function renderResult(res){
+  const m = META[res.verdict];
+  const seal = $("seal");
+  seal.style.borderColor = m.hex;
+  seal.style.background = m.soft;
+  seal.style.color = m.hex;
+  $("sealAr").textContent = m.ar;  $("sealAr").style.color = m.hex;
+  $("sealEn").textContent = m.en;  $("sealEn").style.color = m.hex;
+  $("sealSub").textContent = m.sub; $("sealSub").style.color = m.hex;
+  $("summary").textContent = res.summary;
+  $("advice").textContent = res.advice;
+
+  const list = $("ingList");
+  list.innerHTML = "";
+  if(res.hits.length === 0){
+    $("ingCard").classList.add("hidden");
+  } else {
+    $("ingCard").classList.remove("hidden");
+    const order = {haram:0, mushbooh:1, halal:2};
+    [...res.hits].sort((a,b)=>order[a.status]-order[b.status]).forEach(h => {
+      const mm = META[h.status];
+      const row = document.createElement("div");
+      row.className = "ing";
+      row.innerHTML = `
+        <span class="pill" style="color:${mm.hex};background:${mm.soft};border-color:${mm.hex}44">${mm.en}</span>
+        <div><b></b><small></small><div class="snippet"></div></div>`;
+      row.querySelector("b").textContent = h.name;
+      row.querySelector("small").textContent = h.reason;
+      row.querySelector(".snippet").textContent = "…" + h.snippet + "…";
+      list.appendChild(row);
+    });
+  }
+  $("inputView").classList.add("hidden");
+  $("resultView").classList.remove("hidden");
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+$("againBtn").onclick = () => {
+  $("resultView").classList.add("hidden");
+  $("inputView").classList.remove("hidden");
+};
+</script>
+</body>
+</html>
