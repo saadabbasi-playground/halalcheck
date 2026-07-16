@@ -24,11 +24,24 @@
   .tabs{display:flex;gap:8px;margin-bottom:20px}
   .tab{flex:1;padding:12px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:15px;font-weight:700;color:var(--ink-soft);cursor:pointer}
   .tab.active{background:var(--pine);border-color:var(--pine);color:#fff}
-  .drop{border:2px dashed var(--line);background:#fff;border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer;transition:.2s}
-  .drop.over,.drop:hover{border-color:var(--pine);background:var(--pine-soft)}
+  .drop{border:2px dashed var(--line);background:#fff;border-radius:14px;padding:40px 20px;text-align:center;transition:.2s}
+  .drop.over{border-color:var(--pine);background:var(--pine-soft)}
   .drop h2{font-family:'Marcellus',serif;font-size:19px;color:var(--pine-dark);margin:0 0 6px;font-weight:400}
   .drop p{font-size:14px;color:var(--ink-soft);margin:0}
-  .drop img{max-width:100%;max-height:300px;border-radius:8px}
+  .pickBtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  .pickBtns .btn{width:auto;flex:1;min-width:150px}
+  .previewBox{border:1px solid var(--line);background:#fff;border-radius:14px;padding:12px;text-align:center}
+  .previewBox img{max-width:100%;max-height:320px;border-radius:8px;display:block;margin:0 auto}
+  #cropPane{text-align:center}
+  .cropWrap{position:relative;display:inline-block;max-width:100%;touch-action:none;border-radius:10px;overflow:hidden;background:#000;line-height:0}
+  .cropWrap img{display:block;max-width:100%;max-height:60vh;user-select:none;-webkit-user-drag:none}
+  .cropRect{position:absolute;border:2px solid var(--pine);box-shadow:0 0 0 9999px rgba(0,0,0,.5);cursor:move;touch-action:none}
+  .handle{position:absolute;width:26px;height:26px;background:#fff;border:2px solid var(--pine);border-radius:50%;touch-action:none}
+  .handle.nw{left:-13px;top:-13px;cursor:nwse-resize}
+  .handle.ne{right:-13px;top:-13px;cursor:nesw-resize}
+  .handle.sw{left:-13px;bottom:-13px;cursor:nesw-resize}
+  .handle.se{right:-13px;bottom:-13px;cursor:nwse-resize}
+  .hint{font-size:13px;color:var(--ink-soft);text-align:center;margin:14px 0 0}
   textarea{width:100%;padding:12px 14px;font-size:15px;font-family:'Karla',sans-serif;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);resize:vertical}
   label span{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
   .btn{width:100%;padding:15px 20px;font-size:16px;font-weight:700;font-family:'Karla',sans-serif;color:#fff;background:var(--pine);border:none;border-radius:10px;cursor:pointer;letter-spacing:.02em}
@@ -78,21 +91,47 @@
     </div>
 
     <div id="photoPane">
-      <div class="drop" id="drop" role="button" tabindex="0" aria-label="Upload a product photo">
-        <div id="dropEmpty">
+      <div id="pickPane">
+        <div class="drop" id="drop" aria-label="Add a product photo">
           <h2>Add a photo of the ingredients label</h2>
-          <p>Tap to use your camera or choose a file · drag &amp; drop works too</p>
+          <p>Take a new photo or choose one from your library — drag &amp; drop works on desktop too</p>
+          <div class="pickBtns">
+            <button class="btn" id="takePhotoBtn" type="button">Take Photo</button>
+            <button class="btn ghost" id="chooseLibBtn" type="button">Choose from Library</button>
+          </div>
         </div>
-        <img id="preview" class="hidden" alt="Label preview" />
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" />
+        <input type="file" id="libraryInput" accept="image/*" class="hidden" />
       </div>
-      <input type="file" id="file" accept="image/*" capture="environment" class="hidden" />
-      <div class="row">
-        <button class="btn" id="ocrBtn" disabled>Read label</button>
-        <button class="btn ghost hidden" id="clearBtn">Clear</button>
+
+      <div id="cropPane" class="hidden">
+        <div class="cropWrap" id="cropWrap">
+          <img id="cropImg" alt="Photo to crop" />
+          <div class="cropRect" id="cropRect">
+            <div class="handle nw"></div>
+            <div class="handle ne"></div>
+            <div class="handle sw"></div>
+            <div class="handle se"></div>
+          </div>
+        </div>
+        <p class="hint">Drag the corners to frame just the ingredients text — a tighter crop reads faster and more accurately.</p>
+        <div class="row">
+          <button class="btn" id="useCropBtn" type="button">Use this crop</button>
+          <button class="btn ghost" id="skipCropBtn" type="button">Use full photo</button>
+        </div>
+        <button class="btn ghost" id="retakeBtn" type="button" style="width:100%;margin-top:10px">Choose a different photo</button>
       </div>
-      <div class="progress" id="progress">
-        <div class="bar"><div class="fill" id="fill"></div></div>
-        <div class="txt" id="progressTxt">Loading OCR engine…</div>
+
+      <div id="previewPane" class="hidden">
+        <div class="previewBox"><img id="preview" alt="Label preview" /></div>
+        <div class="row">
+          <button class="btn" id="ocrBtn" type="button">Read label</button>
+          <button class="btn ghost" id="clearBtn" type="button">Choose different photo</button>
+        </div>
+        <div class="progress" id="progress">
+          <div class="bar"><div class="fill" id="fill"></div></div>
+          <div class="txt" id="progressTxt">Loading OCR engine…</div>
+        </div>
       </div>
     </div>
 
@@ -268,37 +307,123 @@ function switchTab(photo){
   $("photoPane").classList.toggle("hidden", !photo);
 }
 
-// Upload
-const drop = $("drop"), fileInput = $("file");
-drop.onclick = () => fileInput.click();
-drop.onkeydown = e => { if(e.key==="Enter"||e.key===" ") fileInput.click(); };
+// ───────────── Upload: pick → crop → preview ─────────────
+let originalDataUrl = null;   // full photo, pre-crop
+let cropRect = null;          // {x,y,w,h} in displayed-image pixels
+let dragMode = null;          // 'move' | 'nw' | 'ne' | 'sw' | 'se'
+let dragStart = null;
+
+function showPane(name){
+  ["pickPane","cropPane","previewPane"].forEach(id => $(id).classList.toggle("hidden", id !== name));
+}
+
+const drop = $("drop");
 drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
 drop.ondragleave = () => drop.classList.remove("over");
-drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); loadFile(e.dataTransfer.files[0]); };
-fileInput.onchange = e => loadFile(e.target.files[0]);
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); loadFileForCrop(e.dataTransfer.files[0]); };
 
-function loadFile(file){
+$("takePhotoBtn").onclick = () => $("cameraInput").click();
+$("chooseLibBtn").onclick = () => $("libraryInput").click();
+$("cameraInput").onchange = e => loadFileForCrop(e.target.files[0]);
+$("libraryInput").onchange = e => loadFileForCrop(e.target.files[0]);
+
+function loadFileForCrop(file){
   if(!file) return;
+  hideError();
   const r = new FileReader();
+  r.onerror = () => showError("Could not read that file. Try a different photo.");
   r.onload = () => {
-    imgDataUrl = r.result;
-    $("preview").src = imgDataUrl;
-    $("preview").classList.remove("hidden");
-    $("dropEmpty").classList.add("hidden");
-    $("ocrBtn").disabled = false;
-    $("clearBtn").classList.remove("hidden");
-    hideError();
+    originalDataUrl = r.result;
+    const cimg = $("cropImg");
+    cimg.onload = () => { initCropRect(); showPane("cropPane"); };
+    cimg.onerror = () => showError("That file doesn't look like an image.");
+    cimg.src = originalDataUrl;
   };
   r.readAsDataURL(file);
 }
 
-$("clearBtn").onclick = () => {
-  imgDataUrl = null; fileInput.value = "";
-  $("preview").classList.add("hidden");
-  $("dropEmpty").classList.remove("hidden");
-  $("ocrBtn").disabled = true;
-  $("clearBtn").classList.add("hidden");
+function initCropRect(){
+  requestAnimationFrame(() => {
+    const cimg = $("cropImg");
+    const w = cimg.clientWidth, h = cimg.clientHeight;
+    const mx = w * 0.08, my = h * 0.08;
+    cropRect = { x: mx, y: my, w: w - 2*mx, h: h - 2*my };
+    renderCropRect();
+  });
+}
+
+function renderCropRect(){
+  const r = $("cropRect");
+  r.style.left = cropRect.x + "px";
+  r.style.top = cropRect.y + "px";
+  r.style.width = cropRect.w + "px";
+  r.style.height = cropRect.h + "px";
+}
+
+function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+const cropRectEl = $("cropRect"), cropWrapEl = $("cropWrap");
+cropRectEl.addEventListener("pointerdown", e => {
+  const handle = e.target.closest(".handle");
+  dragMode = handle ? [...handle.classList].find(c => ["nw","ne","sw","se"].includes(c)) : "move";
+  dragStart = { px: e.clientX, py: e.clientY, rect: { ...cropRect } };
+  e.target.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+cropRectEl.addEventListener("pointermove", e => {
+  if(!dragMode) return;
+  const dx = e.clientX - dragStart.px, dy = e.clientY - dragStart.py;
+  const boundW = cropWrapEl.clientWidth, boundH = cropWrapEl.clientHeight;
+  const min = 32;
+  let x, y, w, h;
+  if(dragMode === "move"){
+    x = clamp(dragStart.rect.x + dx, 0, boundW - dragStart.rect.w);
+    y = clamp(dragStart.rect.y + dy, 0, boundH - dragStart.rect.h);
+    w = dragStart.rect.w; h = dragStart.rect.h;
+  } else {
+    let left = dragStart.rect.x, top = dragStart.rect.y;
+    let right = dragStart.rect.x + dragStart.rect.w, bottom = dragStart.rect.y + dragStart.rect.h;
+    if(dragMode.includes("n")) top = clamp(top + dy, 0, bottom - min);
+    if(dragMode.includes("s")) bottom = clamp(bottom + dy, top + min, boundH);
+    if(dragMode.includes("w")) left = clamp(left + dx, 0, right - min);
+    if(dragMode.includes("e")) right = clamp(right + dx, left + min, boundW);
+    x = left; y = top; w = right - left; h = bottom - top;
+  }
+  cropRect = { x, y, w, h };
+  renderCropRect();
+});
+cropRectEl.addEventListener("pointerup", () => dragMode = null);
+cropRectEl.addEventListener("pointercancel", () => dragMode = null);
+
+$("useCropBtn").onclick = () => {
+  const cimg = $("cropImg");
+  const scaleX = cimg.naturalWidth / cimg.clientWidth;
+  const scaleY = cimg.naturalHeight / cimg.clientHeight;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(cropRect.w * scaleX));
+  canvas.height = Math.max(1, Math.round(cropRect.h * scaleY));
+  canvas.getContext("2d").drawImage(
+    cimg, cropRect.x * scaleX, cropRect.y * scaleY, cropRect.w * scaleX, cropRect.h * scaleY,
+    0, 0, canvas.width, canvas.height
+  );
+  imgDataUrl = canvas.toDataURL("image/jpeg", 0.92);
+  finalizeImage();
 };
+$("skipCropBtn").onclick = () => { imgDataUrl = originalDataUrl; finalizeImage(); };
+$("retakeBtn").onclick = () => resetUpload();
+$("clearBtn").onclick = () => resetUpload();
+
+function finalizeImage(){
+  $("preview").src = imgDataUrl;
+  showPane("previewPane");
+}
+
+function resetUpload(){
+  originalDataUrl = null; imgDataUrl = null; cropRect = null;
+  $("cameraInput").value = ""; $("libraryInput").value = "";
+  $("progress").style.display = "none";
+  showPane("pickPane");
+}
 
 // Preprocess: upscale + grayscale + contrast stretch for better OCR
 function preprocess(dataUrl){
